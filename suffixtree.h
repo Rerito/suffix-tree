@@ -270,6 +270,33 @@ class SuffixTree {
         return sindex;
     }
 
+    void dumpNode(Node *n, bool same_line, int padding, mapped_substring orig) {
+        int delta = 0;
+        if (!same_line) {
+            for (int i = 0; i < padding; ++i) {
+                std::cout << " ";
+            }
+        }
+        if (!orig.empty()) {
+            auto s = haystack.find(orig.ref_str);
+            for (int i = orig.l; i <= orig.r && i <= s->second.length(); ++i) {
+                std::cout << s->second[i];
+            }
+            std::cout << "-";
+            delta = orig.r - orig.l + 2;
+            if (orig.r == std::numeric_limits<int>::max()) {
+                delta = s->second.length() - orig.l + 2;
+            }
+        }
+        same_line = true;
+        for (auto t_it : n->g) {
+            dumpNode(t_it.second.tgt, same_line, padding + delta, t_it.second.sub);
+            same_line = false;
+        }
+        if (same_line) {
+            std::cout << "##" << std::endl;
+        }
+    }
 public:
     SuffixTree() : last_index(0) {
     }
@@ -284,5 +311,9 @@ public:
     }
 
     virtual ~SuffixTree() {
+    }
+
+    void dumpTree() {
+        dumpNode(&tree.root, true, 0, mapped_substring(0,0,-1));
     }
 };
