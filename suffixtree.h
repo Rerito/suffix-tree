@@ -41,6 +41,9 @@ class SuffixTree {
           l(left),
           r(right)
           {}
+        bool empty() {
+            return (this->l > this->r);
+        }
     };
 
     struct Transition {
