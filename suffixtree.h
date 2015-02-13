@@ -82,7 +82,7 @@ class SuffixTree {
     // Leaves must contain an explicit reference to the suffix they represent
     // Some strings might have common suffixes, hence the map.
     // The suffix link **remains** UNIQUE nonetheless.
-    struct Leaf: public Node {
+    struct Leaf : public Node {
         // TODO
     };
 
@@ -301,7 +301,7 @@ class SuffixTree {
         }
     }
 public:
-    SuffixTree() : last_index(0) {
+    SuffixTree() : end_token('$'), last_index(0) {
     }
     int add_string(const S new_string) {
         ++last_index;
