@@ -11,7 +11,7 @@ class SuffixTree {
 
     typedef S string;
     typedef C character;
-    typedef std::pair<Node*, std::pair<int, int>> ReferencePoint;
+    typedef std::tuple<Node*,int, int> ReferencePoint;
 
 
     // NESTED CLASSES DEFINITIONS
@@ -41,7 +41,7 @@ class SuffixTree {
           l(left),
           r(right)
           {}
-        bool empty() {
+        bool empty() const {
             return (this->l > this->r);
         }
     };
@@ -99,7 +99,7 @@ class SuffixTree {
             root.suffix_link = &sink;
             sink.suffix_link = &root;
         }
-        virtual ~Base() {
+        ~Base() {
             clean();
         }
         void clean() {
@@ -171,7 +171,7 @@ class SuffixTree {
         MappedSubstring ki1 = ki;
         auto ref_str_it = haystack.find(ki.ref_str);
         S w = ref_str_it->second;
-        ReferencePoint sk(s, std::pair<int,int>(ki.ref_str, ki.l));
+        ReferencePoint sk(s, ki.ref_str, ki.l);
         ki1.r = ki.r-1;
         is_endpoint = test_and_split(s, ki1, w[ki.r], w, &r);
         while (!is_endpoint) {
@@ -183,12 +183,12 @@ class SuffixTree {
                 oldr->suffix_link = r;
             }
             oldr = r;
-            sk = canonize(sk.first->suffix_link, ki1);
-            ki1.l = ki.l = sk.second.second;
-            is_endpoint = test_and_split(sk.first, ki1, w[ki.r], w, &r); 
+            sk = canonize(std::get<0>(sk)->suffix_link, ki1);
+            ki1.l = ki.l = std::get<2>(sk);
+            is_endpoint = test_and_split(std::get<0>(sk), ki1, w[ki.r], w, &r); 
         }
         if (&tree.root != oldr) {
-            oldr->suffix_link = sk.first;
+            oldr->suffix_link = std::get<0>(sk);
         }
         return sk;
     }
@@ -198,7 +198,7 @@ class SuffixTree {
     // This returns the canonical pair for this particular combination
     ReferencePoint canonize(Node *s, MappedSubstring kp) {
         if (kp.r < kp.l)
-            return ReferencePoint(s, std::pair<int,int>(kp.ref_str, kp.l));
+            return ReferencePoint(s, kp.ref_str, kp.l);
         auto kp_ref_str = haystack.find(kp.ref_str);
         int delta;
         Transition tk_trans = s->find_alpha_transition(kp_ref_str->second[kp.l]);
@@ -208,7 +208,7 @@ class SuffixTree {
             if (kp.l <= kp.r)
                 tk_trans = s->find_alpha_transition(kp_ref_str->second[kp.l]);
         }
-        return ReferencePoint(s, std::pair<int,int>(kp.ref_str, kp.l));
+        return ReferencePoint(s, kp.ref_str, kp.l);
     }
 
     // get_starting_node - Find the starting node
@@ -221,12 +221,13 @@ class SuffixTree {
     // diverging point between @s and the tree.
     // The result '(s,k)' of this function may then be used to resume the Ukkonen's
     // algorithm.
-    int get_starting_node(const S& s, ReferencePoint *r) {
-        int k = r->second.second;
+    size_t get_starting_node(const S& s, ReferencePoint *r) {
+        int k = std::get<2>(*r);
         int s_len = s.length();
         bool s_runout = false;
         while (!s_runout) {
-            Transition t = r->first->find_alpha_transition(s[k]);
+            Node *r_node = std::get<0>(*r);
+            Transition t = r_node->find_alpha_transition(s[k]);
             if (nullptr != t.tgt) {
                 int i;
                 auto ref_str = haystack.find(t.sub.ref_str);
@@ -236,19 +237,19 @@ class SuffixTree {
                         break;
                     }
                     if (s[k+i] != ref_str->second[t.sub.l+i]) {
-                        r->second.second = k;
+                      std::get<2>(*r) = k;
                         return k+i;
                     }
                 }
                 if (!s_runout) {
-                    r->first = t.tgt;
+                  std::get<0>(*r) = t.tgt;
                     k += i;
                 }
             } else {
                 return k;
             }
         }
-        r->second.second = std::numeric_limits<int>::max();
+        std::get<2>(*r) = std::numeric_limits<int>::max();
         return std::numeric_limits<int>::max();
     }
 
@@ -259,16 +260,16 @@ class SuffixTree {
     // deploy_suffixes performs the Ukkonen's algorithm to inser @s into the
     // tree.
     int deploy_suffixes(const S& s, int sindex) {
-        ReferencePoint active_point(&tree.root, std::pair<int,int>(sindex, 0));
-        int i = get_starting_node(s, &active_point);
+        ReferencePoint active_point(&tree.root, sindex, 0);
+        size_t i = get_starting_node(s, &active_point);
         if (std::numeric_limits<int>::max() == i) {
             return -1;
         }
         for (; i < s.length(); ++i) {
-            MappedSubstring ki(sindex, active_point.second.second, i);
-            active_point = update(active_point.first, ki);
-            ki.l = active_point.second.second;
-            active_point = canonize(active_point.first, ki);
+            MappedSubstring ki(sindex,std::get<2>(active_point), i);
+            active_point = update(std::get<0>(active_point), ki);
+            ki.l = std::get<2>(active_point);
+            active_point = canonize(std::get<0>(active_point), ki);
         }
         return sindex;
     }
@@ -282,7 +283,7 @@ class SuffixTree {
         }
         if (!orig.empty()) {
             auto s = haystack.find(orig.ref_str);
-            for (int i = orig.l; i <= orig.r && i <= s->second.length(); ++i) {
+            for (int i = orig.l; i <= orig.r && i <= static_cast<int>(s->second.length()); ++i) {
                 std::cout << s->second[i];
             }
             std::cout << "-";
@@ -303,7 +304,7 @@ class SuffixTree {
 public:
     SuffixTree() : end_token('$'), last_index(0) {
     }
-    int add_string(const S new_string) {
+    int add_string(S new_string) {
         ++last_index;
         haystack.insert(std::pair<int, S>(last_index, new_string));
         if (0 > deploy_suffixes(new_string, last_index)) {
@@ -313,7 +314,7 @@ public:
         return last_index;
     }
 
-    virtual ~SuffixTree() {
+    ~SuffixTree() {
     }
 
     void dump_tree() {
