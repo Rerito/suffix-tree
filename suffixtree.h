@@ -1,4 +1,8 @@
 
+#ifndef _SUFFIX_TREE_HPP_INCLUDED_
+#define _SUFFIX_TREE_HPP_INCLUDED_
+
+#include <iostream>
 #include <unordered_map>
 #include <list>
 #include <utility>
@@ -321,3 +325,6 @@ public:
         dump_node(&tree.root, true, 0, MappedSubstring(0,0,-1));
     }
 };
+
+#endif // _SUFFIX_TREE_HPP_INCLUDED_
+
