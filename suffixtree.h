@@ -4,11 +4,12 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <list>
 #include <utility>
 #include <limits>
 
-template <typename S, typename C=int>
+template <typename S, typename C=int, C end_token='$'>
 class SuffixTree {
     // Forward declarations of inner classes
     struct Node;
@@ -124,7 +125,6 @@ class SuffixTree {
     // "OUTER" CLASS MEMBERS
 
     Base tree;
-    C end_token;
 
     std::unordered_map<int, S> haystack;
     std::unordered_map<int, Node*> borderpath_map;
@@ -306,7 +306,7 @@ class SuffixTree {
         }
     }
 public:
-    SuffixTree() : end_token('$'), last_index(0) {
+    SuffixTree() : last_index(0) {
     }
     int add_string(S new_string) {
         ++last_index;
