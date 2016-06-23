@@ -11,13 +11,13 @@
 #include <iterator>
 #include <limits>
 
-template <typename InputIterator, typename CharType= typename std::iterator_traits<InputIterator>::value_type, CharType end_token='$'>
+template <typename CharType = char, CharType end_token = '$'>
 class SuffixTree {
     // Forward declarations of inner classes
     struct Node;
 
-    typedef typename std::iterator_traits<InputIterator>::difference_type index_type;
-    typedef typename std::pair<std::unique_ptr<CharType[]>, index_type> string;
+    typedef typename std::vector<CharType> string;
+    typedef typename std::iterator_traits<typename string::iterator>::difference_type index_type;
     typedef CharType character;
     typedef std::tuple<Node*,index_type, index_type> ReferencePoint;
 
@@ -59,6 +59,9 @@ class SuffixTree {
         Node *tgt;
         Transition() : sub(), tgt(nullptr) {}
         Transition(MappedSubstring s, Node *t) : sub(s), tgt(t) {}
+        bool is_valid() {
+            return (tgt != nullptr);
+        }
     };
 
     struct Node {
@@ -74,6 +77,12 @@ class SuffixTree {
         
         Node() : suffix_link(nullptr) {}
         virtual ~Node() {}
+        
+        void dump_info() {
+            for (auto t : g) {
+                std::cout << "Transition for character: " << t.first << std::endl;
+            }
+        }
     };
     
     // Simple workaround for the specific sink node
@@ -132,18 +141,39 @@ class SuffixTree {
     std::unordered_map<int, string> haystack;
     std::unordered_map<int, Node*> borderpath_map;
     int last_index;
+    
+    std::string to_string(string const & s, index_type b, index_type e) {
+        std::string result;
+        if (0 <= b && e < s.size()) {
+            for (auto i = b; i <= e; ++i) {
+                result.push_back(s[i]);
+            }
+        }
+        return result;
+    }
+    
+    std::string to_string(string const & s) {
+        return to_string(s, 0, s.size()-1);
+    }
+
+    std::string to_string(MappedSubstring const & substr) {
+        const auto& it = haystack.find(substr.ref_str);
+        if (haystack.end() != it) {
+            return to_string(it->second, substr.l, substr.r);
+        }
+    }
 
     // Given a Node n, a substring kp and a character t,
     // test_and_split must return if (n, kp) is the end point.
     // If not, and we are in an implicit state, a new state is created.
     bool test_and_split(Node *n, MappedSubstring kp, CharType t, const string& w, Node **r) {
-        CharType tk = w.first[kp.l];
+        CharType tk = w[kp.l];
         index_type delta = kp.r - kp.l;
         if (0 <= delta) {
             Transition tk_trans = n->find_alpha_transition(tk);
             MappedSubstring kp_prime = tk_trans.sub;
             const auto& str_prime = haystack.find(kp_prime.ref_str);
-            if (str_prime->second.first[kp_prime.l + delta + 1] == t) {
+            if (str_prime->second[kp_prime.l + delta + 1] == t) {
                 *r = n;
                 return true;
             } 
@@ -151,7 +181,7 @@ class SuffixTree {
             Transition new_t = tk_trans;
             new_t.sub.l += delta+1;
             (*r)->g.insert(std::pair<CharType, Transition>(
-                str_prime->second.first[new_t.sub.l], new_t));
+                str_prime->second[new_t.sub.l], new_t));
             tk_trans.sub.r = tk_trans.sub.l + delta;
             tk_trans.tgt = *r;
             n->g[tk] = tk_trans;
@@ -161,7 +191,7 @@ class SuffixTree {
             // kp represents an empty substring
             Transition t_Transition = n->find_alpha_transition(t);
             *r = n;
-            return (t_Transition.tgt != nullptr);
+            return (t_Transition.is_valid());
         }
     }
 
@@ -177,14 +207,14 @@ class SuffixTree {
         bool is_endpoint = false;
         MappedSubstring ki1 = ki;
         const auto& ref_str_it = haystack.find(ki.ref_str);
-        string& w = ref_str_it->second;
+        const string& w = ref_str_it->second;
         ReferencePoint sk(n, ki.ref_str, ki.l);
         ki1.r = ki.r-1;
-        is_endpoint = test_and_split(n, ki1, w.first[ki.r], w, &r);
+        is_endpoint = test_and_split(n, ki1, w[ki.r], w, &r);
         while (!is_endpoint) {
             Leaf *r_prime = new Leaf();
             r->g.insert(std::make_pair(
-              w.first[ki.r], Transition(MappedSubstring(
+              w[ki.r], Transition(MappedSubstring(
               ki.ref_str, ki.r, std::numeric_limits<index_type>::max()), r_prime)));
             if (&tree.root != oldr) {
                 oldr->suffix_link = r;
@@ -192,7 +222,7 @@ class SuffixTree {
             oldr = r;
             sk = canonize(std::get<0>(sk)->suffix_link, ki1);
             ki1.l = ki.l = std::get<2>(sk);
-            is_endpoint = test_and_split(std::get<0>(sk), ki1, w.first[ki.r], w, &r);
+            is_endpoint = test_and_split(std::get<0>(sk), ki1, w[ki.r], w, &r);
         }
         if (&tree.root != oldr) {
             oldr->suffix_link = std::get<0>(sk);
@@ -208,12 +238,12 @@ class SuffixTree {
             return ReferencePoint(n, kp.ref_str, kp.l);
         const auto& kp_ref_str = haystack.find(kp.ref_str);
         index_type delta;
-        Transition tk_trans = n->find_alpha_transition(kp_ref_str->second.first[kp.l]);
+        Transition tk_trans = n->find_alpha_transition(kp_ref_str->second[kp.l]);
         while ((delta = tk_trans.sub.r - tk_trans.sub.l) <= kp.r - kp.l) {
             kp.l += 1 + delta;
             n = tk_trans.tgt;
             if (kp.l <= kp.r)
-                tk_trans = n->find_alpha_transition(kp_ref_str->second.first[kp.l]);
+                tk_trans = n->find_alpha_transition(kp_ref_str->second[kp.l]);
         }
         return ReferencePoint(n, kp.ref_str, kp.l);
     }
@@ -229,28 +259,33 @@ class SuffixTree {
     // The result '(s,k)' of this function may then be used to resume the Ukkonen's
     // algorithm.
     index_type get_starting_node(const string& s, ReferencePoint *r) {
-        int k = std::get<2>(*r);
-        int s_len = s.second;
+        auto k = std::get<2>(*r);
+        auto s_len = s.size();
         bool s_runout = false;
         while (!s_runout) {
             Node *r_node = std::get<0>(*r);
-            Transition t = r_node->find_alpha_transition(s.first[k]);
+            if (k >= s_len) {
+                s_runout = true;
+                break;
+            }
+            auto t = r_node->find_alpha_transition(s[k]);
             if (nullptr != t.tgt) {
-                int i;
+                index_type i;
                 const auto& ref_str = haystack.find(t.sub.ref_str);
                 for (i=1; (i <= t.sub.r - t.sub.l); ++i) {
                     if (k+i >= s_len) {
                         s_runout = true;
                         break;
                     }
-                    if (s.first[k+i] != ref_str->second.first[t.sub.l+i]) {
-                      std::get<2>(*r) = k;
+                    if (s[k+i] != ref_str->second[t.sub.l+i]) {
+                        std::get<2>(*r) = k;
                         return k+i;
                     }
                 }
                 if (!s_runout) {
-                  std::get<0>(*r) = t.tgt;
-                    k += i;
+                   std::get<0>(*r) = t.tgt;
+                   k += i;
+                   std::get<2>(*r) = k;
                 }
             } else {
                 return k;
@@ -268,11 +303,11 @@ class SuffixTree {
     // tree.
     int deploy_suffixes(const string& s, int sindex) {
         ReferencePoint active_point(&tree.root, sindex, 0);
-        index_type i = get_starting_node(s, &active_point);
+        auto i = get_starting_node(s, &active_point);
         if (std::numeric_limits<index_type>::max() == i) {
             return -1;
         }
-        for (; i < s.second; ++i) {
+        for (; i < s.size(); ++i) {
             MappedSubstring ki(sindex,std::get<2>(active_point), i);
             active_point = update(std::get<0>(active_point), ki);
             ki.l = std::get<2>(active_point);
@@ -282,21 +317,21 @@ class SuffixTree {
     }
 
     void dump_node(Node *n, bool same_line, index_type padding, MappedSubstring orig) {
-        int delta = 0;
+        index_type delta = 0;
         if (!same_line) {
             for (index_type i = 0; i < padding; ++i) {
-                std::cout << " ";
+                std::cout << "  ";
             }
         }
         if (!orig.empty()) {
             const auto& s = haystack.find(orig.ref_str);
-            for (index_type i = orig.l; i <= orig.r && i < s->second.second; ++i) {
-                std::cout << s->second.first[i] << " ";
+            for (index_type i = orig.l; i <= orig.r && i < s->second.size(); ++i) {
+                std::cout << s->second[i] << " ";
             }
-            std::cout << "-";
+            std::cout << "- ";
             delta = orig.r - orig.l + 2;
             if (orig.r == std::numeric_limits<index_type>::max()) {
-                delta = s->second.second - orig.l + 2;
+                delta = s->second.size() - orig.l;
             }
         }
         same_line = true;
@@ -308,16 +343,41 @@ class SuffixTree {
             std::cout << "##" << std::endl;
         }
     }
+    
+    template <typename InputIterator>
+    bool contain_end_token(InputIterator const & str_begin, InputIterator const & str_end) {
+        return (std::find(str_begin, str_end, end_token) != str_end);
+    }
+    
+    template <typename InputIterator, bool append_end_token = true>
+    string make_string(InputIterator const & str_begin, InputIterator const & str_end) {
+        if (contain_end_token(str_begin, str_end)) {
+            throw std::invalid_argument("Input range contains the end token");
+        }
+        return make_string(str_begin, str_end, std::bool_constant<append_end_token>());
+    }
+    
+    template <typename InputIterator>
+    string make_string(InputIterator const & str_begin, InputIterator const & str_end, std::true_type) {
+        string s(str_begin, str_end);
+        s.push_back(end_token);
+        return s;
+    }
+    
+    template <typename InputIterator>
+    string make_string(InputIterator const & str_begin, InputIterator const & str_end, std::false_type) {
+        index_type str_len = std::distance(str_begin, str_end);
+        string s(str_begin, str_end);
+        return s;
+    }
 public:
     SuffixTree() : last_index(0) {
     }
-    int add_string(InputIterator const & b_s, InputIterator const & e_s) {
+    
+    template <typename InputIterator>
+    int add_string(InputIterator const & str_begin, InputIterator const & str_end) {
         ++last_index;
-        index_type s_len = e_s - b_s + 1;
-        std::unique_ptr<CharType[]> cpy(new CharType[s_len]);
-        string s= std::make_pair(std::move(cpy), s_len);
-        std::copy(b_s, e_s, s.first.get());
-        s.first[s_len-1] = end_token;
+        auto s = make_string(str_begin, str_end);
         haystack.emplace(last_index, std::move(s));
         const auto& s_from_map = haystack.find(last_index);
         if (0 > deploy_suffixes(s_from_map->second, last_index)) {
@@ -325,6 +385,20 @@ public:
             return -1;
         }
         return last_index;
+    }
+    
+    template <typename InputIterator>
+    bool is_suffix(InputIterator const & str_begin, InputIterator const & str_end) {
+        auto s = make_string(str_begin, str_end);
+        ReferencePoint root_point(&tree.root, -1, 0);
+        return (get_starting_node(s, &root_point) == std::numeric_limits<index_type>::max());
+    }
+    
+    template <typename InputIterator>
+    bool is_substring(InputIterator const & str_begin, InputIterator const & str_end) {
+        auto s = make_string<false>(str_begin, str_end);
+        ReferencePoint root_point(&tree.root, -1, 0);
+        return (get_starting_node(s, &root_point) == std::numeric_limits<index_type>::max());
     }
 
     ~SuffixTree() {
