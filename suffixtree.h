@@ -10,6 +10,8 @@
 #include <memory>
 #include <iterator>
 #include <limits>
+#include <vector>
+#include <algorithm>
 
 template <typename CharType = char, CharType end_token = '$'>
 class SuffixTree {
