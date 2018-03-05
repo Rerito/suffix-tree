@@ -1,10 +1,8 @@
-
 #ifndef _SUFFIX_TREE_HPP_INCLUDED_
 #define _SUFFIX_TREE_HPP_INCLUDED_
 
 #include <iostream>
 #include <unordered_map>
-#include <unordered_set>
 #include <list>
 #include <utility>
 #include <memory>

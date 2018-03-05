@@ -1,6 +1,5 @@
-
-
 #include "suffixtree.h"
+
 #include <iostream>
 #include <string>
 #include <set>
