@@ -356,7 +356,7 @@ class SuffixTree {
         if (contain_end_token(str_begin, str_end)) {
             throw std::invalid_argument("Input range contains the end token");
         }
-        return make_string(str_begin, str_end, std::bool_constant<append_end_token>());
+        return make_string(str_begin, str_end, std::integral_constant<bool, append_end_token>());
     }
     
     template <typename InputIterator>
