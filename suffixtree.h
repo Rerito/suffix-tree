@@ -1,15 +1,15 @@
-
 #ifndef _SUFFIX_TREE_HPP_INCLUDED_
 #define _SUFFIX_TREE_HPP_INCLUDED_
 
 #include <iostream>
 #include <unordered_map>
-#include <unordered_set>
 #include <list>
 #include <utility>
 #include <memory>
 #include <iterator>
 #include <limits>
+#include <vector>
+#include <algorithm>
 
 template <typename CharType = char, CharType end_token = '$'>
 class SuffixTree {
@@ -354,7 +354,7 @@ class SuffixTree {
         if (contain_end_token(str_begin, str_end)) {
             throw std::invalid_argument("Input range contains the end token");
         }
-        return make_string(str_begin, str_end, std::bool_constant<append_end_token>());
+        return make_string(str_begin, str_end, std::integral_constant<bool, append_end_token>());
     }
     
     template <typename InputIterator>
