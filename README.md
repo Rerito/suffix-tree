@@ -2,6 +2,13 @@
 
 ## Generalized Suffix Trees ##
 
+# Quick annoucement #
+
+This repository is deprecated and not maintained. For an up to date
+implementation of *Generalized Suffix Trees*, please have a look at https://github.com/Rerito/suffix-tree-v2
+
+# Description #
+
 Here is a C++ implementation for *Generalized Suffix Trees* based on [Ukkonen's
 algorithm](https://www.cs.helsinki.fi/u/ukkonen/SuffixT1withFigs.pdf).
 
